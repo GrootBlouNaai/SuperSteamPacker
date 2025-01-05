@@ -17,6 +17,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Drawing;
+using System.Reflection;
 using static SteamKit2.Internal.CContentBuilder_CommitAppBuild_Request;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using System.Windows.Forms.VisualStyles;
@@ -28,271 +29,295 @@ namespace SuperSteamPacker
         public MainWindow()
         {
             InitializeComponent();
-            public void EnsureDirectoryExists(string directoryPath)
-            {
-                if (!Directory.Exists(directoryPath))
-                {
-                    Directory.CreateDirectory(directoryPath);
-                }
-            }
 
-            public void DeleteDirectoryIfExists(string directoryPath)
+            EnsureDirectoryExists("Compressor");
+            EnsureFileExists("Compressor\\7z.exe", Properties.Resources._7z);
+            //EnsureFileExists("Compressor\\rar.exe", Properties.Resources.rar);
+            if (!File.Exists("Compressor\\rar.exe"))
             {
-                if (Directory.Exists(directoryPath))
-                {
-                    Directory.Delete(directoryPath, true);
-                }
+                EnsureDirectoryExists("Compressor");
+                File.WriteAllBytes("Compressor\\rar.exe", Properties.Resources.rar);
+                File.WriteAllBytes("Compressor\\rarreg.key", Properties.Resources.rarreg);
             }
-
-            public void EnsureFileExists(string filePath, byte[] fileContent)
-            {
-                if (!File.Exists(filePath))
-                {
-                    File.WriteAllBytes(filePath, fileContent);
-                }
-            }
-
-            public void DeleteFileIfExists(string filePath)
-            {
-                if (File.Exists(filePath))
-                {
-                    File.Delete(filePath);
-                }
-            }
-            
             DeleteDirectoryIfExists("Jobs");
             DeleteDirectoryIfExists("Temp");
             EnsureFileExists("settings.ini", Properties.Resources.Settings);
             EnsureDirectoryExists("Language");
 
-            EnsureDirectoryExists("Compressor");
-            EnsureFileExists("Compressor\\7z.exe", Properties.Resources._7z);
-            EnsureFileExists("Compressor\\rar.exe", Properties.Resources.rar);
-
-            ResourceSet resourceSet = Properties.Resources.ResourceManager.GetResourceSet(System.Globalization.CultureInfo.CurrentCulture, true, true);
+            ResourceSet resourceSet = Properties.Resources.ResourceManager.GetResourceSet(
+                System.Globalization.CultureInfo.CurrentCulture, true, true);
 
             foreach (DictionaryEntry resource in resourceSet)
             {
-                string resourcename = resource.Key.ToString();
-                if (resourcename.StartsWith("LANGDATA_"))
+                string resourceName = resource.Key.ToString();
+                if (resourceName.StartsWith("LANGDATA_"))
                 {
                     byte[] resourceBytes = (byte[])resource.Value;
-                    File.WriteAllBytes("Language\\" + resourcename.Substring(9) + ".ini", resourceBytes);
+                    File.WriteAllBytes("Language\\" + resourceName.Substring(9) + ".ini", resourceBytes);
                 }
             }
 
-            var settingsini = new Ini("Settings.ini");
+            var settingsIni = new Ini("Settings.ini");
+            string compressorCheck = settingsIni.Read("compressor", "SSP");
 
-            string compressorcheck = settingsini.Read("compressor", "SSP");
-
-            if (compressorcheck != "7z" && compressorcheck != "RAR")
+            if (compressorCheck != "7z" && compressorCheck != "RAR")
             {
-                settingsini.Write("compressor", "7z", "SSP");
+                settingsIni.Write("compressor", "7z", "SSP");
             }
 
-            if (settingsini.Read("key", "SSP").Length == 0)
+            if (settingsIni.Read("key", "SSP").Length == 0)
             {
                 DeleteFileIfExists("userdata.ini");
-                settingsini.Write("key", GenerateKey(32), "SSP");
+                settingsIni.Write("key", GenerateKey(32), "SSP");
             }
 
-            var globalini = new Ini("Language\\Global.ini");
+            var globalIni = new Ini("Language\\Global.ini");
+            string readLanguage = settingsIni.Read("language", "SSP");
 
-            string readlanguage = settingsini.Read("language", "SSP");
-
-            if (String.IsNullOrEmpty(readlanguage) || !File.Exists("Language\\" + readlanguage + ".ini"))
+            if (string.IsNullOrEmpty(readLanguage) || !File.Exists("Language\\" + readLanguage + ".ini"))
             {
-                readlanguage = "English";
-                settingsini.Write("language", readlanguage, "SSP");
+                readLanguage = "English";
+                settingsIni.Write("language", readLanguage, "SSP");
             }
 
-            var languageini = new Ini("Language\\" + readlanguage + ".ini");
+            var languageIni = new Ini("Language\\" + readLanguage + ".ini");
 
-            Text = globalini.Read("Title", "SSP") + " " + globalini.Read("Version", "SSP") + " " + languageini.Read("by", "SSP") + " " + globalini.Read("Author", "SSP");
+            Text = globalIni.Read("Title", "SSP") + " " + globalIni.Read("Version", "SSP") + " " +
+                   languageIni.Read("by", "SSP") + " " + globalIni.Read("Author", "SSP");
 
-            MODAddBtn.Text               = languageini.Read("add", "SSP");
-            MODDelBtn.Text               = languageini.Read("del", "SSP");
-            MODStartBtn.Text             = languageini.Read("start", "SSP");
-            MODClearQueueBtn.Text        = languageini.Read("ClearQueue", "SSP");
-            MODExportQueueButton.Text    = languageini.Read("Export", "SSP");
-            MODImportQueueButton.Text    = languageini.Read("Import", "SSP");
-            MODQueueLabel.Text           = languageini.Read("queue", "SSP") + ":";
-            MODMoveUpBtn.Text            = languageini.Read("MoveUp", "SSP");
-            MODMoveDownBtn.Text          = languageini.Read("MoveDown", "SSP");
-            MODQueueManageGrp.Text       = languageini.Read("QueueManageGroup", "SSP");
-            MODManageGrp.Text            = languageini.Read("MODManager", "SSP");
-            MODDelBtn.Enabled            = false;
-            MODStartBtn.Enabled          = false;
-            MODClearQueueBtn.Enabled     = false;
-            MODMoveUpBtn.Enabled         = false;
-            MODMoveDownBtn.Enabled       = false;
-            MODAddBtn.Enabled            = false;
+            // UI Text Assignments
+            MODAddBtn.Text = languageIni.Read("add", "SSP");
+            MODDelBtn.Text = languageIni.Read("del", "SSP");
+            MODStartBtn.Text = languageIni.Read("start", "SSP");
+            MODClearQueueBtn.Text = languageIni.Read("ClearQueue", "SSP");
+            MODExportQueueButton.Text = languageIni.Read("Export", "SSP");
+            MODImportQueueButton.Text = languageIni.Read("Import", "SSP");
+            MODQueueLabel.Text = languageIni.Read("queue", "SSP") + ":";
+            MODMoveUpBtn.Text = languageIni.Read("MoveUp", "SSP");
+            MODMoveDownBtn.Text = languageIni.Read("MoveDown", "SSP");
+            MODQueueManageGrp.Text = languageIni.Read("QueueManageGroup", "SSP");
+            MODManageGrp.Text = languageIni.Read("MODManager", "SSP");
+
+            // UI State Assignments
+            MODDelBtn.Enabled = false;
+            MODStartBtn.Enabled = false;
+            MODClearQueueBtn.Enabled = false;
+            MODMoveUpBtn.Enabled = false;
+            MODMoveDownBtn.Enabled = false;
+            MODAddBtn.Enabled = false;
             MODExportQueueButton.Enabled = false;
 
-            QueueLabel.Text           = languageini.Read("queue", "SSP") + ":";
-            AddBtn.Text               = languageini.Read("add", "SSP");
-            DelBtn.Text               = languageini.Read("del", "SSP");
-            SaveLoginBtn.Text         = languageini.Read("SaveLogin", "SSP");
-            StartBtn.Text             = languageini.Read("Start", "SSP");
-            UsernameLabel.Text        = languageini.Read("Username", "SSP");
-            PasswordLabel.Text        = languageini.Read("Password", "SSP");
-            MoreSettingsBtn.Text      = languageini.Read("MoreSettings", "SSP");
-            ClearQueueBtn.Text        = languageini.Read("ClearQueue", "SSP");
-            csrinbtn.Text             = globalini.Read("Forum", "SSP") + " " + languageini.Read("Forum", "SSP");
-            GithubBtn.Text            = globalini.Read("Github", "SSP");
-            MoveUpBtn.Text            = languageini.Read("MoveUp", "SSP");
-            MoveDownBtn.Text          = languageini.Read("MoveDown", "SSP");
-            DelBtn.Enabled            = false;
-            StartBtn.Enabled          = false;
-            ClearQueueBtn.Enabled     = false;
-            MoveUpBtn.Enabled         = false;
-            MoveDownBtn.Enabled       = false;
-            AddBtn.Enabled            = false;
-            OSBox.Enabled             = false;
+            // Additional UI Initialization
+            QueueLabel.Text = languageIni.Read("queue", "SSP") + ":";
+            AddBtn.Text = languageIni.Read("add", "SSP");
+            DelBtn.Text = languageIni.Read("del", "SSP");
+            SaveLoginBtn.Text = languageIni.Read("SaveLogin", "SSP");
+            StartBtn.Text = languageIni.Read("Start", "SSP");
+            UsernameLabel.Text = languageIni.Read("Username", "SSP");
+            PasswordLabel.Text = languageIni.Read("Password", "SSP");
+            MoreSettingsBtn.Text = languageIni.Read("MoreSettings", "SSP");
+            ClearQueueBtn.Text = languageIni.Read("ClearQueue", "SSP");
+            csrinbtn.Text = globalIni.Read("Forum", "SSP") + " " + languageIni.Read("Forum", "SSP");
+            GithubBtn.Text = globalIni.Read("Github", "SSP");
+            MoveUpBtn.Text = languageIni.Read("MoveUp", "SSP");
+            MoveDownBtn.Text = languageIni.Read("MoveDown", "SSP");
+
+            // Additional UI State Assignments
+            DelBtn.Enabled = false;
+            StartBtn.Enabled = false;
+            ClearQueueBtn.Enabled = false;
+            MoveUpBtn.Enabled = false;
+            MoveDownBtn.Enabled = false;
+            AddBtn.Enabled = false;
+            OSBox.Enabled = false;
             ExportQueueButton.Enabled = false;
-            ExportQueueButton.Text    = languageini.Read("Export", "SSP");
-            ImportQueueButton.Text    = languageini.Read("Import", "SSP");
-            OSBox.SelectedIndex       = 4;
-            QueueManageGrp.Text       = languageini.Read("QueueManageGroup", "SSP");
-            GameManageGrp.Text        = languageini.Read("GameManageGroup", "SSP");
-            BranchGrp.Text            = languageini.Read("BranchManagerGroup", "SSP");
-            BranchLabel.Text          = languageini.Read("BranchLabel", "SSP");
-            BranchPasswordCB.Text     = languageini.Read("BranchPassword", "SSP");
+            ExportQueueButton.Text = languageIni.Read("Export", "SSP");
+            ImportQueueButton.Text = languageIni.Read("Import", "SSP");
+            OSBox.SelectedIndex = 4;
+            QueueManageGrp.Text = languageIni.Read("QueueManageGroup", "SSP");
+            GameManageGrp.Text = languageIni.Read("GameManageGroup", "SSP");
+            BranchGrp.Text = languageIni.Read("BranchManagerGroup", "SSP");
+            BranchLabel.Text = languageIni.Read("BranchLabel", "SSP");
+            BranchPasswordCB.Text = languageIni.Read("BranchPassword", "SSP");
 
             if (File.Exists("userdata.ini"))
             {
                 var userdata = new Ini("userdata.ini");
-                UsernameTextBox.Text = DecryptString(userdata.Read("username", "userdata"), settingsini.Read("key", "SSP"));
-                PasswordTextBox.Text = DecryptString(userdata.Read("password", "userdata"), settingsini.Read("key", "SSP"));
+                UsernameTextBox.Text = DecryptString(userdata.Read("username", "userdata"), settingsIni.Read("key", "SSP"));
+                PasswordTextBox.Text = DecryptString(userdata.Read("password", "userdata"), settingsIni.Read("key", "SSP"));
                 UsernameTextBox.Enabled = false;
                 PasswordTextBox.Enabled = false;
             }
 
             BranchPasswordTxtBox.Enabled = false;
-            BranchPasswordCB.Enabled     = false;
-            BranchNameTxtBox.Enabled     = false;
+            BranchPasswordCB.Enabled = false;
+            BranchNameTxtBox.Enabled = false;
 
-            if (settingsini.Read("darkmode", "SSP") == "1")
+            if (settingsIni.Read("darkmode", "SSP") == "1")
             {
-                BackColor = Color.FromArgb(35, 35, 40);
-                GamePage.BackColor = Color.FromArgb(35, 35, 40);
-                QueueLabel.ForeColor = Color.White;
-                UsernameLabel.ForeColor = Color.White;
-                PasswordLabel.ForeColor = Color.White;
-                GameManageGrp.ForeColor = Color.White;
-                BranchGrp.ForeColor = Color.White;
-                QueueManageGrp.ForeColor = Color.White;
-                AppIDExplain.BackColor = Color.FromArgb(60, 60, 69);
-                AppIDExplain.FlatStyle = FlatStyle.Flat;
-                OSExplain.BackColor = Color.FromArgb(60, 60, 69);
-                OSExplain.FlatStyle = FlatStyle.Flat;
-                SaveLoginBtn.BackColor = Color.FromArgb(60, 60, 69);
-                SaveLoginBtn.FlatStyle = FlatStyle.Flat;
-                SaveLoginBtn.ForeColor = Color.White;
-                MoreSettingsBtn.BackColor = Color.FromArgb(60, 60, 69);
-                MoreSettingsBtn.FlatStyle = FlatStyle.Flat;
-                MoreSettingsBtn.ForeColor = Color.White;
-                QueueBox.BackColor = Color.FromArgb(35,32,35);
-                QueueBox.ForeColor = Color.FromArgb(58, 128, 250);
-                AddBtn.BackColor = Color.FromArgb(60, 60, 69);
-                AddBtn.FlatStyle = FlatStyle.Flat;
-                AddBtn.ForeColor = Color.White;
-                DelBtn.BackColor = Color.FromArgb(60, 60, 69);
-                DelBtn.FlatStyle = FlatStyle.Flat;
-                DelBtn.ForeColor = Color.White;
-                ClearQueueBtn.BackColor = Color.FromArgb(60, 60, 69);
-                ClearQueueBtn.FlatStyle = FlatStyle.Flat;
-                ClearQueueBtn.ForeColor = Color.White;
-                MoveUpBtn.BackColor = Color.FromArgb(60, 60, 69);
-                MoveUpBtn.FlatStyle = FlatStyle.Flat;
-                MoveUpBtn.ForeColor = Color.White;
-                MoveDownBtn.BackColor = Color.FromArgb(60, 60, 69);
-                MoveDownBtn.FlatStyle = FlatStyle.Flat;
-                MoveDownBtn.ForeColor = Color.White;
-                ExportQueueButton.BackColor = Color.FromArgb(60, 60, 69);
-                ExportQueueButton.FlatStyle = FlatStyle.Flat;
-                ExportQueueButton.ForeColor = Color.White;
-                ImportQueueButton.BackColor = Color.FromArgb(60, 60, 69);
-                ImportQueueButton.FlatStyle = FlatStyle.Flat;
-                ImportQueueButton.ForeColor = Color.White;
-                BranchPasswordCB.ForeColor = Color.White;
-                StartBtn.BackColor = Color.FromArgb(60, 60, 69);
-                StartBtn.FlatStyle = FlatStyle.Flat;
-                StartBtn.ForeColor = Color.White;
-                csrinbtn.BackColor = Color.FromArgb(60, 60, 69);
-                csrinbtn.FlatStyle = FlatStyle.Flat;
-                csrinbtn.ForeColor = Color.White;
-                GithubBtn.BackColor = Color.FromArgb(60, 60, 69);
-                GithubBtn.FlatStyle = FlatStyle.Flat;
-                GithubBtn.ForeColor = Color.White;
-                SSPLogoPicBox.Image = Properties.Resources.logo_dark;
-                AppIDTxtBox.ForeColor = Color.White;
-                AppIDTxtBox.BackColor = Color.FromArgb(60, 60, 69);
-                AppIDTxtBox.BorderStyle = BorderStyle.FixedSingle;
-                UsernameTextBox.ForeColor = Color.White;
-                UsernameTextBox.BackColor = Color.FromArgb(60, 60, 69);
-                UsernameTextBox.BorderStyle = BorderStyle.FixedSingle;
-                PasswordTextBox.ForeColor = Color.White;
-                PasswordTextBox.BackColor = Color.FromArgb(60, 60, 69);
-                PasswordTextBox.BorderStyle = BorderStyle.FixedSingle;
-                BranchNameTxtBox.ForeColor = Color.White;
-                BranchNameTxtBox.BackColor = Color.FromArgb(60, 60, 69);
-                BranchNameTxtBox.BorderStyle = BorderStyle.FixedSingle;
-                BranchPasswordTxtBox.ForeColor = Color.White;
-                BranchPasswordTxtBox.BackColor = Color.FromArgb(60, 60, 69);
-                BranchPasswordTxtBox.BorderStyle = BorderStyle.FixedSingle;
-                AchievementsPage.BackColor = Color.FromArgb(35, 35, 40);
-                WorkshopPage.BackColor = Color.FromArgb(35, 35, 40);
-                DepotsPage.BackColor = Color.FromArgb(35, 35, 40);
-                PostTemplatePage.BackColor = Color.FromArgb(35, 35, 40);
-                Placeholder2.ForeColor = Color.White;
-                Placeholder3.ForeColor = Color.White;
-                Placeholder4.ForeColor = Color.White;
-                MODQueueLabel.ForeColor = Color.White;
-                MODManageGrp.ForeColor = Color.White;
-                MODAppIDTxtBx.ForeColor = Color.White;
-                MODAppIDTxtBx.BackColor = Color.FromArgb(60, 60, 69);
-                MODAppIDTxtBx.BorderStyle = BorderStyle.FixedSingle;
-                MODWorkshopItemIDBx.ForeColor = Color.White;
-                MODWorkshopItemIDBx.BackColor = Color.FromArgb(60, 60, 69);
-                MODWorkshopItemIDBx.BorderStyle = BorderStyle.FixedSingle;
-                MODQueueManageGrp.ForeColor = Color.White;
-                MODAddBtn.BackColor = Color.FromArgb(60, 60, 69);
-                MODAddBtn.FlatStyle = FlatStyle.Flat;
-                MODAddBtn.ForeColor = Color.White;
-                MODDelBtn.BackColor = Color.FromArgb(60, 60, 69);
-                MODDelBtn.FlatStyle = FlatStyle.Flat;
-                MODDelBtn.ForeColor = Color.White;
-                MODClearQueueBtn.BackColor = Color.FromArgb(60, 60, 69);
-                MODClearQueueBtn.FlatStyle = FlatStyle.Flat;
-                MODClearQueueBtn.ForeColor = Color.White;
-                MODMoveUpBtn.BackColor = Color.FromArgb(60, 60, 69);
-                MODMoveUpBtn.FlatStyle = FlatStyle.Flat;
-                MODMoveUpBtn.ForeColor = Color.White;
-                MODMoveDownBtn.BackColor = Color.FromArgb(60, 60, 69);
-                MODMoveDownBtn.FlatStyle = FlatStyle.Flat;
-                MODMoveDownBtn.ForeColor = Color.White;
-                MODImportQueueButton.BackColor = Color.FromArgb(60, 60, 69);
-                MODImportQueueButton.FlatStyle = FlatStyle.Flat;
-                MODImportQueueButton.ForeColor = Color.White;
-                MODExportQueueButton.BackColor = Color.FromArgb(60, 60, 69);
-                MODExportQueueButton.FlatStyle = FlatStyle.Flat;
-                MODExportQueueButton.ForeColor = Color.White;
-                MODcsrinbtn.BackColor = Color.FromArgb(60, 60, 69);
-                MODcsrinbtn.FlatStyle = FlatStyle.Flat;
-                MODcsrinbtn.ForeColor = Color.White;
-                MODGithubBtn.BackColor = Color.FromArgb(60, 60, 69);
-                MODGithubBtn.FlatStyle = FlatStyle.Flat;
-                MODGithubBtn.ForeColor = Color.White;
-                MODStartBtn.BackColor = Color.FromArgb(60, 60, 69);
-                MODStartBtn.FlatStyle = FlatStyle.Flat;
-                MODStartBtn.ForeColor = Color.White;
-                MODQueueBox.BackColor = Color.FromArgb(35, 32, 35);
-                MODQueueBox.ForeColor = Color.FromArgb(58, 128, 250);
+                ApplyDarkMode();
             }
         }
 
+        private void ApplyDarkMode()
+        {
+            BackColor = Color.FromArgb(35, 35, 40);
+            GamePage.BackColor = Color.FromArgb(35, 35, 40);
+            QueueLabel.ForeColor = Color.White;
+            UsernameLabel.ForeColor = Color.White;
+            PasswordLabel.ForeColor = Color.White;
+            GameManageGrp.ForeColor = Color.White;
+            BranchGrp.ForeColor = Color.White;
+            QueueManageGrp.ForeColor = Color.White;
 
+            // Additional Dark Mode Styling
+            AppIDExplain.BackColor = Color.FromArgb(60, 60, 69);
+            AppIDExplain.FlatStyle = FlatStyle.Flat;
+            OSExplain.BackColor = Color.FromArgb(60, 60, 69);
+            OSExplain.FlatStyle = FlatStyle.Flat;
+            SaveLoginBtn.BackColor = Color.FromArgb(60, 60, 69);
+            SaveLoginBtn.FlatStyle = FlatStyle.Flat;
+            SaveLoginBtn.ForeColor = Color.White;
+            MoreSettingsBtn.BackColor = Color.FromArgb(60, 60, 69);
+            MoreSettingsBtn.FlatStyle = FlatStyle.Flat;
+            MoreSettingsBtn.ForeColor = Color.White;
+            QueueBox.BackColor = Color.FromArgb(35, 32, 35);
+            QueueBox.ForeColor = Color.FromArgb(58, 128, 250);
+
+            // Buttons Styling
+            AddBtn.BackColor = Color.FromArgb(60, 60, 69);
+            AddBtn.FlatStyle = FlatStyle.Flat;
+            AddBtn.ForeColor = Color.White;
+            DelBtn.BackColor = Color.FromArgb(60, 60, 69);
+            DelBtn.FlatStyle = FlatStyle.Flat;
+            DelBtn.ForeColor = Color.White;
+            ClearQueueBtn.BackColor = Color.FromArgb(60, 60, 69);
+            ClearQueueBtn.FlatStyle = FlatStyle.Flat;
+            ClearQueueBtn.ForeColor = Color.White;
+            MoveUpBtn.BackColor = Color.FromArgb(60, 60, 69);
+            MoveUpBtn.FlatStyle = FlatStyle.Flat;
+            MoveUpBtn.ForeColor = Color.White;
+            MoveDownBtn.BackColor = Color.FromArgb(60, 60, 69);
+            MoveDownBtn.FlatStyle = FlatStyle.Flat;
+            MoveDownBtn.ForeColor = Color.White;
+            ExportQueueButton.BackColor = Color.FromArgb(60, 60, 69);
+            ExportQueueButton.FlatStyle = FlatStyle.Flat;
+            ExportQueueButton.ForeColor = Color.White;
+            ImportQueueButton.BackColor = Color.FromArgb(60, 60, 69);
+            ImportQueueButton.FlatStyle = FlatStyle.Flat;
+            ImportQueueButton.ForeColor = Color.White;
+            BranchPasswordCB.ForeColor = Color.White;
+            StartBtn.BackColor = Color.FromArgb(60, 60, 69);
+            StartBtn.FlatStyle = FlatStyle.Flat;
+            StartBtn.ForeColor = Color.White;
+            csrinbtn.BackColor = Color.FromArgb(60, 60, 69);
+            csrinbtn.FlatStyle = FlatStyle.Flat;
+            csrinbtn.ForeColor = Color.White;
+            GithubBtn.BackColor = Color.FromArgb(60, 60, 69);
+            GithubBtn.FlatStyle = FlatStyle.Flat;
+            GithubBtn.ForeColor = Color.White;
+            SSPLogoPicBox.Image = Properties.Resources.logo_dark;
+
+            // TextBox Styling
+            AppIDTxtBox.ForeColor = Color.White;
+            AppIDTxtBox.BackColor = Color.FromArgb(60, 60, 69);
+            AppIDTxtBox.BorderStyle = BorderStyle.FixedSingle;
+            UsernameTextBox.ForeColor = Color.White;
+            UsernameTextBox.BackColor = Color.FromArgb(60, 60, 69);
+            UsernameTextBox.BorderStyle = BorderStyle.FixedSingle;
+            PasswordTextBox.ForeColor = Color.White;
+            PasswordTextBox.BackColor = Color.FromArgb(60, 60, 69);
+            PasswordTextBox.BorderStyle = BorderStyle.FixedSingle;
+            BranchNameTxtBox.ForeColor = Color.White;
+            BranchNameTxtBox.BackColor = Color.FromArgb(60, 60, 69);
+            BranchNameTxtBox.BorderStyle = BorderStyle.FixedSingle;
+            BranchPasswordTxtBox.ForeColor = Color.White;
+            BranchPasswordTxtBox.BackColor = Color.FromArgb(60, 60, 69);
+            BranchPasswordTxtBox.BorderStyle = BorderStyle.FixedSingle;
+
+            // Page Styling
+            AchievementsPage.BackColor = Color.FromArgb(35, 35, 40);
+            WorkshopPage.BackColor = Color.FromArgb(35, 35, 40);
+            DepotsPage.BackColor = Color.FromArgb(35, 35, 40);
+            PostTemplatePage.BackColor = Color.FromArgb(35, 35, 40);
+            Placeholder2.ForeColor = Color.White;
+            Placeholder3.ForeColor = Color.White;
+            Placeholder4.ForeColor = Color.White;
+
+            // MOD UI Styling
+            MODQueueLabel.ForeColor = Color.White;
+            MODManageGrp.ForeColor = Color.White;
+            MODAppIDTxtBx.ForeColor = Color.White;
+            MODAppIDTxtBx.BackColor = Color.FromArgb(60, 60, 69);
+            MODAppIDTxtBx.BorderStyle = BorderStyle.FixedSingle;
+            MODWorkshopItemIDBx.ForeColor = Color.White;
+            MODWorkshopItemIDBx.BackColor = Color.FromArgb(60, 60, 69);
+            MODWorkshopItemIDBx.BorderStyle = BorderStyle.FixedSingle;
+            MODQueueManageGrp.ForeColor = Color.White;
+            MODAddBtn.BackColor = Color.FromArgb(60, 60, 69);
+            MODAddBtn.FlatStyle = FlatStyle.Flat;
+            MODAddBtn.ForeColor = Color.White;
+            MODDelBtn.BackColor = Color.FromArgb(60, 60, 69);
+            MODDelBtn.FlatStyle = FlatStyle.Flat;
+            MODDelBtn.ForeColor = Color.White;
+            MODClearQueueBtn.BackColor = Color.FromArgb(60, 60, 69);
+            MODClearQueueBtn.FlatStyle = FlatStyle.Flat;
+            MODClearQueueBtn.ForeColor = Color.White;
+            MODMoveUpBtn.BackColor = Color.FromArgb(60, 60, 69);
+            MODMoveUpBtn.FlatStyle = FlatStyle.Flat;
+            MODMoveUpBtn.ForeColor = Color.White;
+            MODMoveDownBtn.BackColor = Color.FromArgb(60, 60, 69);
+            MODMoveDownBtn.FlatStyle = FlatStyle.Flat;
+            MODMoveDownBtn.ForeColor = Color.White;
+            MODImportQueueButton.BackColor = Color.FromArgb(60, 60, 69);
+            MODImportQueueButton.FlatStyle = FlatStyle.Flat;
+            MODImportQueueButton.ForeColor = Color.White;
+            MODExportQueueButton.BackColor = Color.FromArgb(60, 60, 69);
+            MODExportQueueButton.FlatStyle = FlatStyle.Flat;
+            MODExportQueueButton.ForeColor = Color.White;
+            MODcsrinbtn.BackColor = Color.FromArgb(60, 60, 69);
+            MODcsrinbtn.FlatStyle = FlatStyle.Flat;
+            MODcsrinbtn.ForeColor = Color.White;
+            MODGithubBtn.BackColor = Color.FromArgb(60, 60, 69);
+            MODGithubBtn.FlatStyle = FlatStyle.Flat;
+            MODGithubBtn.ForeColor = Color.White;
+            MODStartBtn.BackColor = Color.FromArgb(60, 60, 69);
+            MODStartBtn.FlatStyle = FlatStyle.Flat;
+            MODStartBtn.ForeColor = Color.White;
+            MODQueueBox.BackColor = Color.FromArgb(35, 32, 35);
+            MODQueueBox.ForeColor = Color.FromArgb(58, 128, 250);
+        }
+        public void EnsureDirectoryExists(string directoryPath)
+        {
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+        }
+
+        public void DeleteDirectoryIfExists(string directoryPath)
+        {
+            if (Directory.Exists(directoryPath))
+            {
+                Directory.Delete(directoryPath, true);
+            }
+        }
+
+        public void EnsureFileExists(string filePath, byte[] fileContent)
+        {
+            if (!File.Exists(filePath))
+            {
+                File.WriteAllBytes(filePath, fileContent);
+            }
+        }
+
+        public void DeleteFileIfExists(string filePath)
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
         public static void EditVDF(string filePath, string keyToModify, string newValue)
         {
             string fileContents = File.ReadAllText(filePath);
@@ -306,7 +331,6 @@ namespace SuperSteamPacker
                 File.WriteAllText(filePath, fileContents);
             }
         }
-
         public static string ReadVDF(string filePath, string keyToRead)
         {
             string fileContents = File.ReadAllText(filePath);
@@ -535,7 +559,7 @@ namespace SuperSteamPacker
                 {
                 }
             }
-            if ((!String.IsNullOrEmpty(UsernameTextBox.Text) && !String.IsNullOrEmpty(PasswordTextBox.Text)) || anonymousloginconfirmation == true)
+            if ((!String.IsNullOrEmpty(UsernameTextBox.Text) || anonymousloginconfirmation == true))
             {
                 if (!File.Exists("SteamCMD\\steamcmd.exe"))
                 {
@@ -574,42 +598,49 @@ namespace SuperSteamPacker
                             os = "\n@sSteamCmdForcePlatformType linux\n@sSteamCmdForcePlatformBitness 64";
                             break;
                     }
+
+                    string loginCommand = "login " + UsernameTextBox.Text;
+                    if (!String.IsNullOrEmpty(PasswordTextBox.Text))
+                    {
+                        loginCommand += " " + PasswordTextBox.Text;
+                    }
+                    loginCommand += os;
+
                     if (workarray[2].ToLower() == "public")
                     {
                         if (i == 0)
                         {
-                            File.WriteAllText("Currentjob.JOB", "login " + UsernameTextBox.Text + " " + PasswordTextBox.Text + os + "\napp_update " + workarray[1] +" validate\nquit");
+                            File.WriteAllText("Currentjob.JOB", loginCommand + "\napp_update " + workarray[1] + " validate\nquit");
                         }
                         else
                         {
-                            File.WriteAllText("Currentjob.JOB", "login " + UsernameTextBox.Text + os + "\napp_update " + workarray[1] +" validate\nquit");
+                            File.WriteAllText("Currentjob.JOB", loginCommand + "\napp_update " + workarray[1] + " validate\nquit");
                         }
                     }
-                    else //Non public branch code.
+                    else // Non-public branch code.
                     {
-                        if (String.IsNullOrEmpty(workarray[3])) //non password protected branch
+                        if (String.IsNullOrEmpty(workarray[3])) // Non-password protected branch
                         {
                             if (i == 0)
                             {
-                                File.WriteAllText("Currentjob.JOB", "login " + UsernameTextBox.Text + " " + PasswordTextBox.Text + os + "\napp_update " + workarray[1] + " -beta " + workarray[2] + " validate\nquit");
+                                File.WriteAllText("Currentjob.JOB", loginCommand + "\napp_update " + workarray[1] + " -beta " + workarray[2] + " validate\nquit");
                             }
                             else
                             {
-                                File.WriteAllText("Currentjob.JOB", "login " + UsernameTextBox.Text + os + "\napp_update " + workarray[1] + " -beta " + workarray[2] + " validate\nquit");
+                                File.WriteAllText("Currentjob.JOB", loginCommand + "\napp_update " + workarray[1] + " -beta " + workarray[2] + " validate\nquit");
                             }
                         }
-                        else //password protected branch
+                        else // Password protected branch
                         {
                             if (i == 0)
                             {
-                                File.WriteAllText("Currentjob.JOB", "login " + UsernameTextBox.Text + " " + PasswordTextBox.Text + os + "\napp_update " + workarray[1] + " -beta " + workarray[2] + " -betapassword " + workarray[3] + " validate\nquit");
+                                File.WriteAllText("Currentjob.JOB", loginCommand + "\napp_update " + workarray[1] + " -beta " + workarray[2] + " -betapassword " + workarray[3] + " validate\nquit");
                             }
                             else
                             {
-                                File.WriteAllText("Currentjob.JOB", "login " + UsernameTextBox.Text + os + "\napp_update " + workarray[1] + " -beta " + workarray[2] + " -betapassword " + workarray[3] + " validate\nquit");
+                                File.WriteAllText("Currentjob.JOB", loginCommand + "\napp_update " + workarray[1] + " -beta " + workarray[2] + " -betapassword " + workarray[3] + " validate\nquit");
                             }
                         }
-
                     }
 
                     TmpLstBx.SelectedIndex = i;
@@ -679,6 +710,9 @@ namespace SuperSteamPacker
                     }
                     else
                     {
+                        //BuildNoEarly = "Unknown";
+                        //BuildTime    = "";
+                        //GameNameEarly= "";
                         QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("GETINFO", "SSP"), languageini.Read("UNABLETOREACH", "SSP"));
                         continue;
                     }
@@ -698,7 +732,8 @@ namespace SuperSteamPacker
 
                     QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("GETINFO", "SSP"), languageini.Read("DOWNLOADING", "SSP")); 
                     Directory.SetCurrentDirectory("SteamCMD");
-                    DeleteDirectoryIfExists("Logs");
+                    DeleteDirectoryIfExists("SteamCMD\\logs");
+
                     Process SteamCMD = new Process();
                     SteamCMD.StartInfo.FileName = "steamcmd.exe";
                     SteamCMD.StartInfo.Arguments = "+runscript" + " ..\\" + "CurrentJob.JOB";
@@ -739,8 +774,8 @@ namespace SuperSteamPacker
 
                     if (SteamCMD.ExitCode != 0 || ratelimited || failedsubscription || steamguardcodefail || invalidpassword)
                     {
-                        DeleteDirectoryIfExists("steamapps");
-                        DeleteDirectoryIfExists("depotcache");
+                        DeleteDirectoryIfExists("SteamCMD\\steamapps");
+                        DeleteDirectoryIfExists("SteamCMD\\depotcache");
 
                         if (ratelimited && !failedsubscription)
                         {
@@ -758,11 +793,11 @@ namespace SuperSteamPacker
                                     QueueBox.Items[ratelimititems] = QueueBox.Items[i].ToString().Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("RATELIMITED", "SSP"));
                                     QueueBox.Items[ratelimititems] = QueueBox.Items[i].ToString().Replace(languageini.Read("READY", "SSP"), languageini.Read("RATELIMITED", "SSP"));
                                 }
-                                DeleteDirectoryIfExists("steamapps");
-                                DeleteDirectoryIfExists("depotcache");
-                                DeleteDirectoryIfExists("logs");
-                                DeleteDirectoryIfExists("Temp");
+                                DeleteDirectoryIfExists("SteamCMD\\steamapps");
+                                DeleteDirectoryIfExists("SteamCMD\\depotcache");
+                                DeleteDirectoryIfExists("SteamCMD\\logs");
                                 DeleteDirectoryIfExists("Jobs");
+
                                 break;
                             }
                         }
@@ -790,7 +825,7 @@ namespace SuperSteamPacker
                     DeleteFileIfExists("Temp\\steamapps\\libraryfolders.vdf");
                     DeleteDirectoryIfExists("Temp\\steamapps\\downloading");
                     DeleteDirectoryIfExists("Temp\\steamapps\\temp");
-                    
+
                     string[] acffiles = Directory.GetFiles("Temp\\steamapps", "*.acf");
                     foreach (string acffile in acffiles)
                     {
@@ -807,6 +842,7 @@ namespace SuperSteamPacker
                     EnsureDirectoryExists("Completed");
                     Directory.SetCurrentDirectory("Temp");
                     DeleteDirectoryIfExists("steamapps\\workshop");
+
 
                     List<string> DepotManifestList = new List<string>();
 
@@ -835,87 +871,95 @@ namespace SuperSteamPacker
                         }
                     }
 
-                    QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("COMPRESSING", "SSP"));
-
-                    Process Compress = new Process();
-                    if (settingsini.Read("compressor", "SSP") == "7z")
+                    if (settingsini.Read("skipcompression", "SSP") == "1")
                     {
-                        Compress.StartInfo.FileName = "..\\Compressor\\7z.exe";
-                        if (String.IsNullOrEmpty(settingsini.Read("customcompressoption", "SSP")))
-                        {
-                            if (File.Exists("..\\Completed\\"+GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".7z") || File.Exists("..\\Completed\\" + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".7z.001"))
-                            {
-                                QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
-                                Directory.SetCurrentDirectory("..");
-                                Directory.Delete("Temp", true);
-                                continue;
-                            }
-                            else
-                            {
-                                Compress.StartInfo.Arguments = "a -mx9 -sdel -pcs.rin.ru -v5g ..\\Completed\\" + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".7z *";
-                            }
-                            
-                        }
-                        else
-                        {
-                            if (File.Exists("..\\Completed\\" + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".7z") || File.Exists("..\\Completed\\" + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".7z.001"))
-                            {
-                                QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
-                                Directory.SetCurrentDirectory("..");
-                                Directory.Delete("Temp", true);
-                                continue;
-                            }
-                            else
-                            {
-                                Compress.StartInfo.Arguments = "a " + settingsini.Read("customcompressoption", "SSP") + " ..\\Completed\\" + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".7z *";
-                            }
-                        }
+                        Directory.SetCurrentDirectory("..");
+                        Directory.Move("Temp", "Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2]);
                     }
                     else
                     {
-                        Compress.StartInfo.FileName = "..\\Compressor\\rar.exe";
-                        if (String.IsNullOrEmpty(settingsini.Read("customcompressoption", "SSP")))
+                        QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("COMPRESSING", "SSP"));
+
+                        Process Compress = new Process();
+                        if (settingsini.Read("compressor", "SSP") == "7z")
                         {
-                            if (File.Exists("..\\Completed\\" + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".rar") || File.Exists("..\\Completed\\" + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".part1.rar"))
+                            Compress.StartInfo.FileName = "..\\Compressor\\7z.exe";
+                            if (String.IsNullOrEmpty(settingsini.Read("customcompressoption", "SSP")))
                             {
-                                QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
-                                Directory.SetCurrentDirectory("..");
-                                Directory.Delete("Temp", true);
-                                continue;
+                                if (File.Exists("..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".7z") || File.Exists("..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".7z.001"))
+                                {
+                                    QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
+                                    Directory.SetCurrentDirectory("..");
+                                    Directory.Delete("Temp", true);
+                                    continue;
+                                }
+                                else
+                                {
+                                    Compress.StartInfo.Arguments = "a -mx9 -sdel -pcs.rin.ru -mhe=on -v5g ..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".7z *";
+                                }
+
                             }
                             else
                             {
-                                Compress.StartInfo.Arguments = "a -df -hpcs.rin.ru -htc -v5000000k -r ..\\Completed\\" + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".rar *";
+                                if (File.Exists("..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".7z") || File.Exists("..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".7z.001"))
+                                {
+                                    QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
+                                    Directory.SetCurrentDirectory("..");
+                                    Directory.Delete("Temp", true);
+                                    continue;
+                                }
+                                else
+                                {
+                                    Compress.StartInfo.Arguments = "a " + settingsini.Read("customcompressoption", "SSP") + " ..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".7z *";
+                                }
                             }
                         }
                         else
                         {
-                            if (File.Exists("..\\Completed\\" + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".rar") || File.Exists("..\\Completed\\" + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".part1.rar"))
+                            Compress.StartInfo.FileName = "..\\Compressor\\rar.exe";
+                            if (String.IsNullOrEmpty(settingsini.Read("customcompressoption", "SSP")))
                             {
-                                QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
-                                Directory.SetCurrentDirectory("..");
-                                Directory.Delete("Temp", true);
-                                continue;
+                                if (File.Exists("..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".rar") || File.Exists("..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".part1.rar"))
+                                {
+                                    QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
+                                    Directory.SetCurrentDirectory("..");
+                                    Directory.Delete("Temp", true);
+                                    continue;
+                                }
+                                else
+                                {
+                                    Compress.StartInfo.Arguments = "a -df -hpcs.rin.ru -htc -v5000000k -r ..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".rar *";
+                                }
                             }
                             else
                             {
-                                Compress.StartInfo.Arguments = "a " + settingsini.Read("customcompressoption", "SSP") + " ..\\Completed\\" + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".rar *";
+                                if (File.Exists("..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".rar") || File.Exists("..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".part1.rar"))
+                                {
+                                    QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
+                                    Directory.SetCurrentDirectory("..");
+                                    Directory.Delete("Temp", true);
+                                    continue;
+                                }
+                                else
+                                {
+                                    Compress.StartInfo.Arguments = "a " + settingsini.Read("customcompressoption", "SSP") + " ..\\Completed\\" + GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".rar *";
+                                }
                             }
                         }
-                    }
-                    Compress.Start();
-                    Compress.WaitForExit();
+                        Compress.Start();
+                        Compress.WaitForExit();
 
-                    if (Compress.ExitCode!=0)
-                    {
-                        QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("FAIL", "SSP"));
-                        Directory.SetCurrentDirectory("..");
-                        DirectoryInfo directoryInfo = new DirectoryInfo("Completed");
-                        foreach (FileInfo fileToDelete in directoryInfo.GetFiles(GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".*"))
+                        if (Compress.ExitCode != 0)
                         {
-                            fileToDelete.Delete();
+                            QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("FAIL", "SSP"));
+                            Directory.SetCurrentDirectory("..");
+                            DirectoryInfo directoryInfo = new DirectoryInfo("Completed");
+                            foreach (FileInfo fileToDelete in directoryInfo.GetFiles(GameName + ".Build." + BuildNo + "." + OS + "." + workarray[2] + ".*"))
+                            {
+                                fileToDelete.Delete();
+                            }
+                            continue;
                         }
-                        continue;
                     }
 
                     if (!File.Exists("..\\Completed\\"+ GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".7z.002") && settingsini.Read("compressor", "SSP") == "7z")
@@ -926,10 +970,13 @@ namespace SuperSteamPacker
                         }
                         
                     }
-                    Directory.SetCurrentDirectory("..");
-                    Directory.Delete("Temp", true);
+                    if (settingsini.Read("skipcompression", "SSP") == "0")
+                    {
+                        Directory.SetCurrentDirectory("..");
+                        Directory.Delete("Temp", true);
+                    }
                     QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("WRITINGINFO", "SSP"));
-
+                    Directory.SetCurrentDirectory(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
                     using (StreamWriter RINfo = new StreamWriter("Completed\\[CS.RIN.RU Info] " + GameName+".Build."+BuildNo+"."+OS+"."+workarray[2]+".txt"))
                     {
                         GameName = GameName.Replace("_", " ");
@@ -1020,7 +1067,6 @@ namespace SuperSteamPacker
                     }
                 }
                 DeleteDirectoryIfExists("Jobs");
-
                 MessageBox.Show(languageini.Read("jobscomplete", "SSP") + "\n\n" + languageini.Read("jobscomplete2", "SSP"), languageini.Read("information", "SSP"), MessageBoxButtons.OK, MessageBoxIcon.Information);
                 StartBtn.Enabled=false;
                 AddBtn.Enabled=false;
@@ -1576,134 +1622,167 @@ namespace SuperSteamPacker
             DeleteDirectoryIfExists("SteamCMD\\depotcache");
             DeleteDirectoryIfExists("SteamCMD\\logs");
             DeleteFileIfExists("CurrentJob.JOB");
-
+        
             var settingsini = new Ini("Settings.ini");
             var globalini = new Ini("Language\\Global.ini");
             string readlanguage = settingsini.Read("language", "SSP");
             var languageini = new Ini("Language\\" + readlanguage + ".ini");
-
+        
             bool anonymousloginconfirmation = false;
-
+        
             if (String.IsNullOrEmpty(UsernameTextBox.Text))
             {
                 UsernameTextBox.Text = "anonymous";
             }
+        
             if (UsernameTextBox.Text == "anonymous")
             {
-                DialogResult result = MessageBox.Show(languageini.Read("anonymousconfirmation", "SSP"), languageini.Read("Warning", "SSP"), MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+                DialogResult result = MessageBox.Show(
+                    languageini.Read("anonymousconfirmation", "SSP"),
+                    languageini.Read("Warning", "SSP"),
+                    MessageBoxButtons.OKCancel,
+                    MessageBoxIcon.Warning
+                );
+        
                 if (result == DialogResult.OK)
                 {
                     anonymousloginconfirmation = true;
                 }
             }
-            if ((!String.IsNullOrEmpty(UsernameTextBox.Text) && !String.IsNullOrEmpty(PasswordTextBox.Text)) || anonymousloginconfirmation == true)
+        
+            if ((!String.IsNullOrEmpty(UsernameTextBox.Text) && !String.IsNullOrEmpty(PasswordTextBox.Text)) || anonymousloginconfirmation)
             {
                 if (!File.Exists("SteamCMD\\steamcmd.exe"))
                 {
                     var client = new WebClient();
-                    client.DownloadFile("https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip", "download.tmp");
+                    client.DownloadFile(
+                        "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip",
+                        "download.tmp"
+                    );
                     ZipFile.ExtractToDirectory("download.tmp", "SteamCMD");
                     File.Delete("download.tmp");
-
+        
                     Process loadsteam1 = new Process();
                     loadsteam1.StartInfo.FileName = "SteamCMD\\steamcmd.exe";
                     loadsteam1.StartInfo.Arguments = "+quit";
                     loadsteam1.Start();
                     loadsteam1.WaitForExit();
                 }
+        
                 for (int i = 0; i < MODTmpLstBx.Items.Count; i++)
                 {
-                    DeleteFileIfExists("CurrentJob.JOB");
+                    DeleteDirectoryIfExists("Jobs");
                     MODTmpLstBx.SelectedIndex = i;
                     string[] workarray = MODTmpLstBx.SelectedItem.ToString().Split('|');
                     string AppID = workarray[0];
                     string WorkshopID = workarray[1];
-
-                    if (File.Exists("Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z") || File.Exists("Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.001"))
+        
+                    if (File.Exists("Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z") ||
+                        File.Exists("Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.001"))
                     {
-                        MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("READY", "SSP"), languageini.Read("SKIPPED", "SSP"));
+                        MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                            .Replace(languageini.Read("READY", "SSP"), languageini.Read("SKIPPED", "SSP"));
                         continue;
                     }
-                    if (File.Exists("Completed\\Workshop_" + AppID + "_" + WorkshopID + ".rar") || File.Exists("Completed\\Workshop_" + AppID + "_" + WorkshopID + ".part1.rar"))
+        
+                    if (File.Exists("Completed\\Workshop_" + AppID + "_" + WorkshopID + ".rar") ||
+                        File.Exists("Completed\\Workshop_" + AppID + "_" + WorkshopID + ".part1.rar"))
                     {
-                        MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("READY", "SSP"), languageini.Read("SKIPPED", "SSP"));
+                        MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                            .Replace(languageini.Read("READY", "SSP"), languageini.Read("SKIPPED", "SSP"));
                         continue;
                     }
-
+        
                     if (i == 0)
                     {
-                        File.WriteAllText("Currentjob.JOB", "login " + UsernameTextBox.Text + " " + PasswordTextBox.Text + "\nworkshop_download_item " + workarray[0] + " " + workarray[1] + " validate\nquit");
+                        File.WriteAllText(
+                            "Currentjob.JOB",
+                            "login " + UsernameTextBox.Text + " " + PasswordTextBox.Text +
+                            "\nworkshop_download_item " + workarray[0] + " " + workarray[1] + " validate\nquit"
+                        );
                     }
                     else
                     {
-                        File.WriteAllText("Currentjob.JOB", "login " + UsernameTextBox.Text + "\nworkshop_download_item " + workarray[0] + " " + workarray[1] + " validate\nquit");
+                        File.WriteAllText(
+                            "Currentjob.JOB",
+                            "login " + UsernameTextBox.Text +
+                            "\nworkshop_download_item " + workarray[0] + " " + workarray[1] + " validate\nquit"
+                        );
                     }
+        
                     MODTmpLstBx.SelectedIndex = i;
+        
                     try
                     {
                         string[] filesearly = Directory.GetFiles("Completed\\Workshop_", AppID + "_" + WorkshopID + ".*");
-
+        
                         if (filesearly.Length != 0)
                         {
-                            MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("READY", "SSP"), languageini.Read("SKIPPED", "SSP"));
+                            MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                                .Replace(languageini.Read("READY", "SSP"), languageini.Read("SKIPPED", "SSP"));
                             continue;
                         }
                     }
-                    catch
-                    {
-                    }
-                    MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("READY", "SSP"), languageini.Read("DOWNLOADING", "SSP"));
-                    DeleteDirectoryIfExists("Logs");
-
+                    catch { }
+        
+                    MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                        .Replace(languageini.Read("READY", "SSP"), languageini.Read("DOWNLOADING", "SSP"));
+        
+                    DeleteDirectoryIfExists("SteamCMD\\logs");
                     Directory.SetCurrentDirectory("SteamCMD");
+        
                     Process SteamCMD = new Process();
                     SteamCMD.StartInfo.FileName = "steamcmd.exe";
-                    SteamCMD.StartInfo.Arguments = "+runscript" + " ..\\" + "CurrentJob.JOB";
+                    SteamCMD.StartInfo.Arguments = "+runscript ..\\CurrentJob.JOB";
                     SteamCMD.Start();
                     SteamCMD.WaitForExit();
-
+        
                     bool failedsubscription = false;
                     bool ratelimited = false;
                     bool invalidpassword = false;
                     bool steamguardcodefail = false;
-
-                    if (File.Exists("Logs\\content_log.txt"))
+        
+                    if (File.Exists("Logs\\content_log.txt") &&
+                        File.ReadAllText("Logs\\content_log.txt").Contains("No subscription"))
                     {
-                        if (File.ReadAllText("Logs\\content_log.txt").Contains("No subscription"))
-                        {
-                            failedsubscription = true;
-                        }
+                        failedsubscription = true;
                     }
+        
                     if (File.Exists("Logs\\connection_log.txt"))
                     {
                         if (File.ReadAllText("Logs\\connection_log.txt").Contains("Rate Limit Exceeded"))
                         {
                             ratelimited = true;
-                            //MessageBox.Show("RL");
                         }
                         if (File.ReadAllText("Logs\\connection_log.txt").Contains("Invalid Password"))
                         {
                             invalidpassword = true;
-                            //MessageBox.Show("IP");
                         }
                     }
+        
                     if (!File.Exists("Logs\\sitelicense_steamcmd.txt") && !File.Exists("Logs\\compat_log.txt"))
                     {
                         steamguardcodefail = true;
-                        //MessageBox.Show("SGCF");
                     }
-
+        
                     if (SteamCMD.ExitCode != 0 || ratelimited || failedsubscription || steamguardcodefail || invalidpassword)
                     {
-                        DeleteDirectoryIfExists("steamapps");
-                        DeleteDirectoryIfExists("depotcache");
-
+                        DeleteDirectoryIfExists("SteamCMD\\steamapps");
+                        DeleteDirectoryIfExists("SteamCMD\\depotcache");
+        
                         if (ratelimited && !failedsubscription)
                         {
-                            DialogResult ratelimitask = MessageBox.Show(languageini.Read("RateLimitWarn", "SSP"), languageini.Read("WARNING", "SSP"), MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+                            DialogResult ratelimitask = MessageBox.Show(
+                                languageini.Read("RateLimitWarn", "SSP"),
+                                languageini.Read("WARNING", "SSP"),
+                                MessageBoxButtons.OKCancel,
+                                MessageBoxIcon.Warning
+                            );
+        
                             if (ratelimitask == DialogResult.OK)
                             {
-                                MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("RATELIMITED", "SSP"));
+                                MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                                    .Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("RATELIMITED", "SSP"));
                                 Directory.SetCurrentDirectory("..");
                                 continue;
                             }
@@ -1711,16 +1790,18 @@ namespace SuperSteamPacker
                             {
                                 for (int ratelimititems = i; ratelimititems < MODQueueBox.Items.Count; ratelimititems++)
                                 {
-                                    MODQueueBox.Items[ratelimititems] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("RATELIMITED", "SSP"));
-                                    MODQueueBox.Items[ratelimititems] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("READY", "SSP"), languageini.Read("RATELIMITED", "SSP"));
+                                    MODQueueBox.Items[ratelimititems] = MODQueueBox.Items[i].ToString()
+                                        .Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("RATELIMITED", "SSP"));
+                                    MODQueueBox.Items[ratelimititems] = MODQueueBox.Items[i].ToString()
+                                        .Replace(languageini.Read("READY", "SSP"), languageini.Read("RATELIMITED", "SSP"));
                                 }
-                                DeleteDirectoryIfExists("steamapps");
-                                DeleteDirectoryIfExists("depotcache");
-                                DeleteDirectoryIfExists("logs");
-
-                                Directory.SetCurrentDirectory("..");
-                                DeleteDirectoryIfExists("Temp");
+        
                                 DeleteDirectoryIfExists("Jobs");
+                                DeleteDirectoryIfExists("Temp");
+                                DeleteDirectoryIfExists("SteamCMD\\steamapps");
+                                DeleteDirectoryIfExists("SteamCMD\\depotcache");
+                                DeleteDirectoryIfExists("SteamCMD\\logs");
+        
                                 break;
                             }
                         }
@@ -1728,139 +1809,172 @@ namespace SuperSteamPacker
                         {
                             if (steamguardcodefail || invalidpassword)
                             {
-                                MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("BADLOGIN", "SSP"));
+                                MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                                    .Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("BADLOGIN", "SSP"));
                             }
                             else
                             {
-                                MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("FAIL", "SSP"));
+                                MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                                    .Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("FAIL", "SSP"));
                             }
                             Directory.SetCurrentDirectory("..");
                             continue;
                         }
                     }
-                    Directory.SetCurrentDirectory("..");
-                    EnsureDirectoryExists("Temp");
 
+                    Directory.SetCurrentDirectory(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+                    EnsureDirectoryExists("Temp");
+        
                     DirectoryInfo depotcachedir = new DirectoryInfo("SteamCMD\\depotcache");
                     try
                     {
                         depotcachedir.MoveTo("Temp\\depotcache");
                     }
                     catch
-
                     {
-                        MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("FAIL", "SSP"));
+                        MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                            .Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("FAIL", "SSP"));
                         continue;
                     }
+        
                     DirectoryInfo steamappsdir = new DirectoryInfo("SteamCMD\\steamapps");
                     steamappsdir.MoveTo("Temp\\steamapps");
-                    
                     DeleteFileIfExists("Temp\\steamapps\\libraryfolders.vdf");
-                    
                     DeleteDirectoryIfExists("Temp\\steamapps\\downloading");
                     DeleteDirectoryIfExists("Temp\\steamapps\\temp");
                     DeleteDirectoryIfExists("Temp\\steamapps\\workshop\\downloads");
                     DeleteDirectoryIfExists("Temp\\steamapps\\workshop\\temp");
-                    
                     EnsureDirectoryExists("Completed");
-
-
-                    Directory.SetCurrentDirectory("Temp");
-                    MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("COMPRESSING", "SSP"));
-
-                    Process Compress = new Process();
-                    if (settingsini.Read("compressor", "SSP") == "7z")
+        
+                    if (settingsini.Read("skipcompression", "SSP") == "1")
                     {
-                        Compress.StartInfo.FileName = "..\\Compressor\\7z.exe";
-                        if (String.IsNullOrEmpty(settingsini.Read("customcompressoption", "SSP")))
-                        {
-                            if (File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z") || File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.001"))
-                            {
-                                MODQueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
-                                Directory.SetCurrentDirectory("..");
-                                Directory.Delete("Temp", true);
-                                continue;
-                            }
-                            else
-                            {
-                                Compress.StartInfo.Arguments = "a -mx9 -sdel -pcs.rin.ru -v5g ..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z *";
-                            }
-
-                        }
-                        else
-                        {
-                            if (File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z") || File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.001"))
-                            {
-                                MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
-                                Directory.SetCurrentDirectory("..");
-                                Directory.Delete("Temp", true);
-                                continue;
-                            }
-                            else
-                            {
-                                Compress.StartInfo.Arguments = "a " + settingsini.Read("customcompressoption", "SSP") + " ..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z *";
-                            }
-                        }
+                        Directory.Move("Temp", "Completed\\Workshop_" + AppID + "_" + WorkshopID);
                     }
                     else
                     {
-                        Compress.StartInfo.FileName = "..\\Compressor\\rar.exe";
-                        if (String.IsNullOrEmpty(settingsini.Read("customcompressoption", "SSP")))
+                        Directory.SetCurrentDirectory("Temp");
+                        MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                            .Replace(languageini.Read("DOWNLOADING", "SSP"), languageini.Read("COMPRESSING", "SSP"));
+        
+                        Process Compress = new Process();
+                        if (settingsini.Read("compressor", "SSP") == "7z")
                         {
-                            if (File.Exists("..\\Completed\\" + AppID + "_" + WorkshopID + ".rar") || File.Exists("..\\Completed\\" + AppID + "_" + WorkshopID + ".part1.rar"))
+                            Compress.StartInfo.FileName = "..\\Compressor\\7z.exe";
+                            if (String.IsNullOrEmpty(settingsini.Read("customcompressoption", "SSP")))
                             {
-                                MODQueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
-                                Directory.SetCurrentDirectory("..");
-                                Directory.Delete("Temp", true);
-                                continue;
+                                if (File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z") ||
+                                    File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.001"))
+                                {
+                                    MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                                        .Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
+                                    Directory.SetCurrentDirectory("..");
+                                    Directory.Delete("Temp", true);
+                                    continue;
+                                }
+                                else
+                                {
+                                    Compress.StartInfo.Arguments = "a -mx9 -sdel -pcs.rin.ru -mhe=on -v5g ..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z *";
+                                }
                             }
                             else
                             {
-                                Compress.StartInfo.Arguments = "a -df -hpcs.rin.ru -htc -v5000000k -r ..\\Completed\\" + AppID + "_" + WorkshopID + ".rar *";
+                                if (File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z") ||
+                                    File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.001"))
+                                {
+                                    MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                                        .Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
+                                    Directory.SetCurrentDirectory("..");
+                                    Directory.Delete("Temp", true);
+                                    continue;
+                                }
+                                else
+                                {
+                                    Compress.StartInfo.Arguments = "a " + settingsini.Read("customcompressoption", "SSP") + " ..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z *";
+                                }
                             }
                         }
                         else
                         {
-                            if (File.Exists("..\\Completed\\" + AppID + "_" + WorkshopID + ".rar") || File.Exists("..\\Completed\\" + AppID + "_" + WorkshopID + ".part1.rar"))
+                            Compress.StartInfo.FileName = "..\\Compressor\\rar.exe";
+                            if (String.IsNullOrEmpty(settingsini.Read("customcompressoption", "SSP")))
                             {
-                                QueueBox.Items[i] = QueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
-                                Directory.SetCurrentDirectory("..");
-                                Directory.Delete("Temp", true);
-                                continue;
+                                if (File.Exists("..\\Completed\\" + AppID + "_" + WorkshopID + ".rar") ||
+                                    File.Exists("..\\Completed\\" + AppID + "_" + WorkshopID + ".part1.rar"))
+                                {
+                                    MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                                        .Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
+                                    Directory.SetCurrentDirectory("..");
+                                    Directory.Delete("Temp", true);
+                                    continue;
+                                }
+                                else
+                                {
+                                    Compress.StartInfo.Arguments = "a -df -hpcs.rin.ru -htc -v5000000k -r ..\\Completed\\" + AppID + "_" + WorkshopID + ".rar *";
+                                }
                             }
                             else
                             {
-                                Compress.StartInfo.Arguments = "a " + settingsini.Read("customcompressoption", "SSP") + " ..\\Completed\\" + AppID + "_" + WorkshopID + ".rar *";
+                                if (File.Exists("..\\Completed\\" + AppID + "_" + WorkshopID + ".rar") ||
+                                    File.Exists("..\\Completed\\" + AppID + "_" + WorkshopID + ".part1.rar"))
+                                {
+                                    MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                                        .Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("SKIPPED", "SSP"));
+                                    Directory.SetCurrentDirectory("..");
+                                    Directory.Delete("Temp", true);
+                                    continue;
+                                }
+                                else
+                                {
+                                    Compress.StartInfo.Arguments = "a " + settingsini.Read("customcompressoption", "SSP") + " ..\\Completed\\" + AppID + "_" + WorkshopID + ".rar *";
+                                }
                             }
                         }
-                    }
-                    Compress.Start();
-                    Compress.WaitForExit();
-                    if (Compress.ExitCode != 0)
-                    {
-                        MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("FAIL", "SSP"));
+        
+                        Compress.Start();
+                        Compress.WaitForExit();
+        
+                        if (Compress.ExitCode != 0)
+                        {
+                            MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                                .Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("FAIL", "SSP"));
+                            Directory.SetCurrentDirectory("..");
+                            DirectoryInfo directoryInfo = new DirectoryInfo("Completed");
+                            foreach (FileInfo fileToDelete in directoryInfo.GetFiles("Workshop_" + AppID + "_" + WorkshopID + ".*"))
+                            {
+                                fileToDelete.Delete();
+                            }
+                            continue;
+                        }
+        
+                        if (!File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.002") &&
+                            settingsini.Read("compressor", "SSP") == "7z")
+                        {
+                            if (File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.001"))
+                            {
+                                File.Move(
+                                    "..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.001",
+                                    "..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z."
+                                );
+                            }
+                        }
+        
                         Directory.SetCurrentDirectory("..");
-                        DirectoryInfo directoryInfo = new DirectoryInfo("Completed");
-                        foreach (FileInfo fileToDelete in directoryInfo.GetFiles("Workshop_" + AppID + "_" + WorkshopID + ".*"))
-                        {
-                            fileToDelete.Delete();
-                        }
-                        continue;
+                        Directory.Delete("Temp", true);
                     }
-                    if (!File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.002") && settingsini.Read("compressor", "SSP") == "7z")
-                    {
-                        if (File.Exists("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.001"))
-                        {
-                            File.Move("..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.001", "..\\Completed\\Workshop_" + AppID + "_" + WorkshopID + ".7z.");
-                        }
-                    }
-                    Directory.SetCurrentDirectory("..");
-                    Directory.Delete("Temp", true);
-                    MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString().Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("COMPLETE", "SSP"));
+        
+                    MODQueueBox.Items[i] = MODQueueBox.Items[i].ToString()
+                        .Replace(languageini.Read("COMPRESSING", "SSP"), languageini.Read("COMPLETE", "SSP"));
                     DeleteFileIfExists("CurrentJob.JOB");
                 }
+        
                 DeleteDirectoryIfExists("Jobs");
-                MessageBox.Show(languageini.Read("jobscomplete", "SSP") + "\n\n" + languageini.Read("jobscomplete2", "SSP"), languageini.Read("information", "SSP"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(
+                    languageini.Read("jobscomplete", "SSP") + "\n\n" + languageini.Read("jobscomplete2", "SSP"),
+                    languageini.Read("information", "SSP"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+        
                 MODStartBtn.Enabled = false;
                 MODAddBtn.Enabled = false;
                 MODDelBtn.Enabled = false;
@@ -1868,10 +1982,16 @@ namespace SuperSteamPacker
             }
             else
             {
-                MessageBox.Show(languageini.Read("loginwarning", "SSP"), languageini.Read("Warning", "SSP"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(
+                    languageini.Read("loginwarning", "SSP"),
+                    languageini.Read("Warning", "SSP"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
                 PasswordTextBox.Enabled = true;
                 UsernameTextBox.Enabled = true;
             }
+        
             MODStartBtn.Enabled = true;
         }
     }

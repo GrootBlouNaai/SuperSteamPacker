@@ -65,11 +65,11 @@ namespace SuperSteamPacker
                 settingsIni.Write("compressor", "7z", "SSP");
             }
 
-            string steamcmdapicheck = settingsini.Read("steamcmdapi", "SSP");
+            string steamcmdapicheck = settingsIni.Read("steamcmdapi", "SSP");
 
             if (steamcmdapicheck != "Public" && steamcmdapicheck != "Beta")
             {
-                settingsini.Write("steamcmdapi", "Public", "SSP");
+                settingsIni.Write("steamcmdapi", "Public", "SSP");
             }  
 
             if (settingsIni.Read("key", "SSP").Length == 0)
@@ -674,7 +674,6 @@ namespace SuperSteamPacker
                         steamGameData = await GetSteamGameDataAsync(AppID);
                     }
 
-                    var steamGameData = await GetSteamGameDataAsync(AppID);
                     string GameNameEarly = "";
                     string OS = "";
                     string BuildNoEarly = "";

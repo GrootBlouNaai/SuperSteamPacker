@@ -67,6 +67,15 @@ namespace SuperSteamPacker
                 DarkModeCB.Checked = true;
             }
 
+            if (settingsini.Read("skipcompression", "SSP") == "1")
+            {
+                SkipCompressionCheckBox.Checked = true;
+            }
+            else
+            {
+                SkipCompressionCheckBox.Checked = false;
+            }
+
             string readlanguage = settingsini.Read("language", "SSP");
             var languageini = new Ini("Language\\" + readlanguage + ".ini");
 

@@ -17,9 +17,9 @@ namespace SuperSteamPacker
             string[] langfiles = Directory.GetFiles("Language", "*.ini");
             foreach (string langfile in langfiles)
             {
-                if (langfile.Substring(9, langfile.Length-(9+4)).ToLower() != "global")
+                if (langfile.Substring(9, langfile.Length - (9 + 4)).ToLower() != "global")
                 {
-                    LangChoiceBox.Items.Add(langfile.Substring(9, langfile.Length-(9+4)));
+                    LangChoiceBox.Items.Add(langfile.Substring(9, langfile.Length - (9 + 4)));
                 }
             }
             LangChoiceBox.SelectedItem = settingsini.Read("language", "SSP");
@@ -31,6 +31,16 @@ namespace SuperSteamPacker
                     break;
                 case "RAR":
                     CompressorChoiceBox.SelectedIndex = 1;
+                    break;
+            }
+
+            switch (settingsini.Read("steamcmdapi", "SSP"))
+            {
+                case "Public":
+                    SteamCmdApiChoiceBox.SelectedIndex = 0;
+                    break;
+                case "Beta":
+                    SteamCmdApiChoiceBox.SelectedIndex = 1;
                     break;
             }
 
@@ -51,7 +61,7 @@ namespace SuperSteamPacker
             }
 
             rinruUsernameTextbox.Enabled = false;
-            filehostTextbox.Enabled      = false;
+            filehostTextbox.Enabled = false;
 
             if (settingsini.Read("uploadcrewmode", "SSP") == "1")
             {
@@ -67,6 +77,7 @@ namespace SuperSteamPacker
                 DarkModeCB.Checked = true;
             }
 
+            // Add Skip Compression Checkbox initialization here ▼
             if (settingsini.Read("skipcompression", "SSP") == "1")
             {
                 SkipCompressionCheckBox.Checked = true;
@@ -80,7 +91,7 @@ namespace SuperSteamPacker
             var languageini = new Ini("Language\\" + readlanguage + ".ini");
 
             Text = languageini.Read("MoreSettings", "SSP");
-            LangLabel.Text = languageini.Read("Language","SSP") + ":";
+            LangLabel.Text = languageini.Read("Language", "SSP") + ":";
             CompressorLabel.Text = languageini.Read("Compressor", "SSP") + ":";
             CustomCompressorOptionsCheckBox.Text = languageini.Read("customcompressoroptions", "SSP");
             DelSavedLoginBtn.Text = languageini.Read("DeleteSavedLogin", "SSP");
@@ -93,31 +104,32 @@ namespace SuperSteamPacker
 
             if (settingsini.Read("darkmode", "SSP") == "1")
             {
-                LangLabel.ForeColor                        = Color.White;
-                CompressorLabel.ForeColor                  = Color.White;
-                CompressorLabel.ForeColor                  = Color.White;
-                CustomCompressorOptionsCheckBox.ForeColor  = Color.White;
-                UploadCrewModeCB.ForeColor                 = Color.White;
-                DarkModeCB.ForeColor                       = Color.White;
-                BackColor                                  = Color.FromArgb(35,35,40);
-                DelSavedLoginBtn.BackColor                 = Color.FromArgb(60,60,69);
-                DelSavedLoginBtn.ForeColor                 = Color.White;
-                DelSavedLoginBtn.FlatStyle                 = FlatStyle.Flat;
-                CustomCompressorOptionsTextBox.ForeColor   = Color.White;
-                CustomCompressorOptionsTextBox.BackColor   = Color.FromArgb(60, 60, 69);
+                LangLabel.ForeColor = Color.White;
+                CompressorLabel.ForeColor = Color.White;
+                CompressorLabel.ForeColor = Color.White;
+                CustomCompressorOptionsCheckBox.ForeColor = Color.White;
+                UploadCrewModeCB.ForeColor = Color.White;
+                DarkModeCB.ForeColor = Color.White;
+                BackColor = Color.FromArgb(35, 35, 40);
+                DelSavedLoginBtn.BackColor = Color.FromArgb(60, 60, 69);
+                DelSavedLoginBtn.ForeColor = Color.White;
+                DelSavedLoginBtn.FlatStyle = FlatStyle.Flat;
+                CustomCompressorOptionsTextBox.ForeColor = Color.White;
+                CustomCompressorOptionsTextBox.BackColor = Color.FromArgb(60, 60, 69);
                 CustomCompressorOptionsTextBox.BorderStyle = BorderStyle.FixedSingle;
-                DepotSyncBtn.BackColor                     = Color.FromArgb(60, 60, 69);
-                DepotSyncBtn.ForeColor                     = Color.White;
-                DepotSyncBtn.FlatStyle                     = FlatStyle.Flat;
-                rinruUsernameLabel.ForeColor               = Color.White;
-                rinruUsernameTextbox.ForeColor             = Color.White;
-                rinruUsernameTextbox.BackColor             = Color.FromArgb(60, 60, 69);
-                rinruUsernameTextbox.BorderStyle           = BorderStyle.FixedSingle;
-                filehostLabel.ForeColor                    = Color.White;
-                filehostTextbox.ForeColor                  = Color.White;
-                filehostTextbox.BackColor                  = Color.FromArgb(60, 60, 69);
-                filehostTextbox.BorderStyle                = BorderStyle.FixedSingle;
-                SkipCompressionCheckBox.ForeColor          = Color.White;    
+                DepotSyncBtn.BackColor = Color.FromArgb(60, 60, 69);
+                DepotSyncBtn.ForeColor = Color.White;
+                DepotSyncBtn.FlatStyle = FlatStyle.Flat;
+                rinruUsernameLabel.ForeColor = Color.White;
+                rinruUsernameTextbox.ForeColor = Color.White;
+                rinruUsernameTextbox.BackColor = Color.FromArgb(60, 60, 69);
+                rinruUsernameTextbox.BorderStyle = BorderStyle.FixedSingle;
+                filehostLabel.ForeColor = Color.White;
+                filehostTextbox.ForeColor = Color.White;
+                filehostTextbox.BackColor = Color.FromArgb(60, 60, 69);
+                filehostTextbox.BorderStyle = BorderStyle.FixedSingle;
+                SkipCompressionCheckBox.ForeColor = Color.White;
+                steamcmdapiLabel.ForeColor = Color.White;
             }
         }
 
@@ -151,7 +163,7 @@ namespace SuperSteamPacker
                     }
                     else
                     {
-                        CustomCompressorOptionsTextBox.Enabled  = false;
+                        CustomCompressorOptionsTextBox.Enabled = false;
                         CustomCompressorOptionsCheckBox.Checked = false;
                     }
                 }
@@ -182,7 +194,6 @@ namespace SuperSteamPacker
                     settingsini.Write("compressor", "RAR", "SSP");
                     break;
             }
-            
         }
 
         private void UploadCrewModeCB_CheckedChanged(object sender, EventArgs e)
@@ -193,7 +204,7 @@ namespace SuperSteamPacker
                 case true:
                     settingsini.Write("uploadcrewmode", "1", "SSP");
                     rinruUsernameTextbox.Enabled = true;
-                    filehostTextbox.Enabled = true; 
+                    filehostTextbox.Enabled = true;
                     break;
                 case false:
                     settingsini.Write("uploadcrewmode", "0", "SSP");
@@ -203,6 +214,21 @@ namespace SuperSteamPacker
                     filehostTextbox.Text = null;
                     break;
             }
+        }
+        
+        private void SteamCmdApiChoiceBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            var settingsini = new Ini("Settings.ini");
+            switch (SteamCmdApiChoiceBox.SelectedIndex)
+            {
+                case 0:
+                    settingsini.Write("steamcmdapi", "Public", "SSP");
+                    break;
+                case 1:
+                    settingsini.Write("steamcmdapi", "Beta", "SSP");
+                    break;
+            }
+
         }
 
         private void DarkModeCB_CheckedChanged(object sender, EventArgs e)
